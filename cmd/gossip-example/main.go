@@ -57,7 +57,7 @@ func main() {
 	node2.Start()
 
 	// Wait for the nodes to gossip.
-	time.Sleep(10 * time.Second)
+	time.Sleep(30 * time.Second)
 
 	// Print the membership lists.
 	fmt.Println("Node 1 members:")
