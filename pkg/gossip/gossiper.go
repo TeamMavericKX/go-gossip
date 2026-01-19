@@ -29,6 +29,7 @@ func NewGossiper(name, listenAddr string, transport Transport) (*Gossiper, error
 	self := &Node{
 		Addr:  addr,
 		State: Alive,
+		LastUpdated: time.Now(),
 	}
 
 	g := &Gossiper{
