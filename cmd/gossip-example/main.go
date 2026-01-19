@@ -24,7 +24,7 @@ func main() {
 	defer transport1.Stop()
 
 	// Create node 1
-	node1, err := gossip.NewGossiper("node1", "127.0.0.1:8080", transport1)
+	node1, err := gossip.NewGossiper("node1", "127.0.0.1:8080", []string{"127.0.0.1:8081"}, transport1)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -42,19 +42,11 @@ func main() {
 	defer transport2.Stop()
 
 	// Create node 2
-	node2, err := gossip.NewGossiper("node2", "127.0.0.1:8081", transport2)
+	node2, err := gossip.NewGossiper("node2", "127.0.0.1:8081", []string{"127.0.0.1:8080"}, transport2)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer node2.Stop()
-
-	// Cross-seed the nodes.
-	if err := node1.AddNode("127.0.0.1:8081"); err != nil {
-		log.Printf("failed to add node: %v", err)
-	}
-	if err := node2.AddNode("127.0.0.1:8080"); err != nil {
-		log.Printf("failed to add node: %v", err)
-	}
 
 	// Set payloads.
 	node1.SetPayload("node1")

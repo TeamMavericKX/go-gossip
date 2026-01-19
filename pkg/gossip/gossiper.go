@@ -20,7 +20,7 @@ type Gossiper struct {
 }
 
 // NewGossiper creates a new gossiper.
-func NewGossiper(name, listenAddr string, transport Transport) (*Gossiper, error) {
+func NewGossiper(name, listenAddr string, peers []string, transport Transport) (*Gossiper, error) {
 	addr, err := net.ResolveUDPAddr("udp", listenAddr)
 	if err != nil {
 		return nil, err
@@ -42,6 +42,20 @@ func NewGossiper(name, listenAddr string, transport Transport) (*Gossiper, error
 
 	g.members.Add(self)
 
+	// Add initial peers
+	for _, peerAddr := range peers {
+		peerUDPAddr, err := net.ResolveUDPAddr("udp", peerAddr)
+		if err != nil {
+			return nil, err
+		}
+		peerNode := &Node{
+			Addr:  peerUDPAddr,
+			State: Alive,
+			LastUpdated: time.Now(),
+		}
+		g.members.Add(peerNode)
+	}
+
 	return g, nil
 }
 
@@ -57,22 +71,6 @@ func (g *Gossiper) Start() {
 func (g *Gossiper) Stop() {
 	close(g.stop)
 	g.wg.Wait()
-}
-
-// AddNode adds a new node to the membership list.
-func (g *Gossiper) AddNode(addr string) error {
-	udpAddr, err := net.ResolveUDPAddr("udp", addr)
-	if err != nil {
-		return err
-	}
-
-	node := &Node{
-		Addr:  udpAddr,
-		State: Alive,
-	}
-
-	g.members.Add(node)
-	return nil
 }
 
 // SetPayload sets the payload for the local node.
