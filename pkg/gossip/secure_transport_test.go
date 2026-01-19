@@ -75,9 +75,7 @@ func TestSecureTransport_WriteRead(t *testing.T) {
 	}
 
 	mockTr1 := NewMockTransport()
-	defer mockTr1.Stop()
 	mockTr2 := NewMockTransport()
-	defer mockTr2.Stop()
 
 	mockTr1.Connect(mockTr2)
 
@@ -134,9 +132,7 @@ func TestSecureTransport_MismatchedKeys(t *testing.T) {
 	rand.Read(key2) // Different key
 
 	mockTr1 := NewMockTransport()
-	defer mockTr1.Stop()
 	mockTr2 := NewMockTransport()
-	defer mockTr2.Stop()
 
 	mockTr1.Connect(mockTr2)
 
