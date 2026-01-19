@@ -57,6 +57,7 @@ func (t *UDPTransport) Stop() {
 }
 
 func (t *UDPTransport) readLoop() {
+	defer close(t.readCh)
 	buf := make([]byte, 1024)
 	for {
 		select {
