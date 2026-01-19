@@ -26,12 +26,15 @@ type Node struct {
 	State State
 	// LastUpdated is the time when the node's state was last updated.
 	LastUpdated time.Time
+	// Payload is a custom payload associated with the node.
+	Payload []byte
 }
 
 type nodeJSON struct {
 	Addr        string    `json:"addr"`
 	State       State     `json:"state"`
 	LastUpdated time.Time `json:"last_updated"`
+	Payload     []byte    `json:"payload"`
 }
 
 // MarshalJSON implements the json.Marshaler interface.
@@ -40,6 +43,7 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		Addr:        n.Addr.String(),
 		State:       n.State,
 		LastUpdated: n.LastUpdated,
+		Payload:     n.Payload,
 	})
 }
 
@@ -58,6 +62,7 @@ func (n *Node) UnmarshalJSON(data []byte) error {
 	n.Addr = addr
 	n.State = obj.State
 	n.LastUpdated = obj.LastUpdated
+	n.Payload = obj.Payload
 
 	return nil
 }

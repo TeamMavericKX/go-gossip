@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"net"
 	"time"
 
 	"github.com/princetheprogrammer/go-gossip/pkg/gossip"
@@ -11,17 +10,29 @@ import (
 
 func main() {
 	// Create two nodes.
-	node1, err := createNode("127.0.0.1:8080", "127.0.0.1:8081")
+	node1, err := createNode("127.0.0.1:8080")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer node1.Stop()
 
-	node2, err := createNode("127.0.0.1:8081", "127.0.0.1:8080")
+	node2, err := createNode("127.0.0.1:8081")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer node2.Stop()
+
+	// Cross-seed the nodes.
+	if err := node1.AddNode("127.0.0.1:8081"); err != nil {
+		log.Fatal(err)
+	}
+	if err := node2.AddNode("127.0.0.1:8080"); err != nil {
+		log.Fatal(err)
+	}
+
+	// Set payloads.
+	node1.SetPayload([]byte("node1"))
+	node2.SetPayload([]byte("node2"))
 
 	// Start the gossipers.
 	node1.Start()
@@ -33,12 +44,12 @@ func main() {
 	// Print the membership lists.
 	fmt.Println("Node 1 members:")
 	for _, member := range node1.Members() {
-		fmt.Printf("- %s\n", member.Addr)
+		fmt.Printf("- %s, payload: %s\n", member.Addr, string(member.Payload))
 	}
 
 	fmt.Println("Node 2 members:")
 	for _, member := range node2.Members() {
-		fmt.Printf("- %s\n", member.Addr)
+		fmt.Printf("- %s, payload: %s\n", member.Addr, string(member.Payload))
 	}
 }
 
@@ -54,32 +65,19 @@ func (g *Gossiper) Stop() {
 	g.transport.Stop()
 }
 
-// Members returns the members of the cluster.
-func (g *Gossiper) Members() []*gossip.Node {
-	return g.All()
-}
-
-func createNode(listenAddr, remoteAddr string) (*Gossiper, error) {
+func createNode(listenAddr string) (*Gossiper, error) {
 	transport, err := gossip.NewUDPTransport(listenAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	g := gossip.NewGossiper(transport)
-
-	// Add the remote node to the membership list.
-	addr, err := net.ResolveUDPAddr("udp", remoteAddr)
+	g, err := gossip.NewGossiper(listenAddr, transport)
 	if err != nil {
 		return nil, err
 	}
-	g.Add(&gossip.Node{
-		Addr:  addr,
-		State: gossip.Alive,
-	})
 
 	return &Gossiper{
 		Gossiper:  g,
 		transport: transport,
-	},
-	nil
+	}, nil
 }

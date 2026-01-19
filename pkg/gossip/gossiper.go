@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"math/rand"
+	"net"
 	"time"
 )
 
@@ -12,15 +13,31 @@ type Gossiper struct {
 	members   *MembershipList
 	transport Transport
 	stop      chan struct{}
+	self      *Node
 }
 
 // NewGossiper creates a new gossiper.
-func NewGossiper(transport Transport) *Gossiper {
-	return &Gossiper{
+func NewGossiper(listenAddr string, transport Transport) (*Gossiper, error) {
+	addr, err := net.ResolveUDPAddr("udp", listenAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	self := &Node{
+		Addr:  addr,
+		State: Alive,
+	}
+
+	g := &Gossiper{
 		members:   NewMembershipList(),
 		transport: transport,
 		stop:      make(chan struct{}),
+		self:      self,
 	}
+
+	g.members.Add(self)
+
+	return g, nil
 }
 
 // Start starts the gossip loop.
@@ -32,6 +49,33 @@ func (g *Gossiper) Start() {
 // Stop stops the gossip loop.
 func (g *Gossiper) Stop() {
 	close(g.stop)
+}
+
+// AddNode adds a new node to the membership list.
+func (g *Gossiper) AddNode(addr string) error {
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		return err
+	}
+
+	node := &Node{
+		Addr:  udpAddr,
+		State: Alive,
+	}
+
+	g.members.Add(node)
+	return nil
+}
+
+// SetPayload sets the payload for the local node.
+func (g *Gossiper) SetPayload(payload []byte) {
+	g.self.Payload = payload
+	g.self.LastUpdated = time.Now()
+}
+
+// Members returns all nodes in the membership list.
+func (g *Gossiper) Members() []*Node {
+	return g.members.All()
 }
 
 func (g *Gossiper) listen() {
@@ -60,13 +104,21 @@ func (g *Gossiper) gossipLoop() {
 }
 
 func (g *Gossiper) gossip() {
+	g.self.LastUpdated = time.Now()
+
 	nodes := g.members.All()
-	if len(nodes) == 0 {
+	if len(nodes) <= 1 {
 		return
 	}
 
-	// Select a random node to gossip to.
-	node := nodes[rand.Intn(len(nodes))]
+	// Select a random node to gossip to (excluding self).
+	var node *Node
+	for {
+		node = nodes[rand.Intn(len(nodes))]
+		if node.Addr.String() != g.self.Addr.String() {
+			break
+		}
+	}
 
 	// Create a ping message with the membership list.
 	payload, err := json.Marshal(g.members.All())
@@ -93,16 +145,6 @@ func (g *Gossiper) gossip() {
 	}
 }
 
-// Add adds a new node to the membership list.
-func (g *Gossiper) Add(node *Node) {
-	g.members.Add(node)
-}
-
-// All returns all nodes in the membership list.
-func (g *Gossiper) All() []*Node {
-	return g.members.All()
-}
-
 func (g *Gossiper) handleMessage(data []byte) {
 	msg, err := Decode(data)
 	if err != nil {
@@ -118,6 +160,9 @@ func (g *Gossiper) handleMessage(data []byte) {
 			return
 		}
 		for _, node := range nodes {
+			if node.Addr.String() == g.self.Addr.String() {
+				continue
+			}
 			g.members.Add(node)
 		}
 	}
