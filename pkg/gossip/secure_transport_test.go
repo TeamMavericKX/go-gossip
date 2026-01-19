@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
-	"net"
+	"fmt"
 	"testing"
 	"time"
 )
