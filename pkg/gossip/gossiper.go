@@ -93,6 +93,16 @@ func (g *Gossiper) gossip() {
 	}
 }
 
+// Add adds a new node to the membership list.
+func (g *Gossiper) Add(node *Node) {
+	g.members.Add(node)
+}
+
+// All returns all nodes in the membership list.
+func (g *Gossiper) All() []*Node {
+	return g.members.All()
+}
+
 func (g *Gossiper) handleMessage(data []byte) {
 	msg, err := Decode(data)
 	if err != nil {
