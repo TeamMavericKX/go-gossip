@@ -67,7 +67,9 @@ func (t *UDPTransport) readLoop() {
 			if err != nil {
 				continue
 			}
-			t.readCh <- buf[:n]
+			data := make([]byte, n)
+			copy(data, buf[:n])
+			t.readCh <- data
 		}
 	}
 }
