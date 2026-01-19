@@ -6,4 +6,6 @@ type Transport interface {
 	Write([]byte, string) error
 	// Read returns a channel that can be used to receive messages.
 	Read() <-chan []byte
+	// Stop stops the transport.
+	Stop()
 }
