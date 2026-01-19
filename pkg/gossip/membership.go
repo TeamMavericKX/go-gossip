@@ -1,7 +1,6 @@
 package gossip
 
 import (
-	"log"
 	"sync"
 )
 
@@ -37,31 +36,22 @@ func (m *MembershipList) Merge(nodes []*Node) {
 func (m *MembershipList) addOrUpdate(node *Node) {
 	existing, ok := m.nodes[node.Addr.String()]
 	if !ok {
-		log.Printf("Adding new node: %s", node.Addr.String())
 		m.nodes[node.Addr.String()] = node
 		return
 	}
 
-	log.Printf("Updating node: %s", node.Addr.String())
-	log.Printf("Existing: LastUpdated=%v, Payload=%s", existing.LastUpdated, existing.Payload)
-	log.Printf("Incoming: LastUpdated=%v, Payload=%s", node.LastUpdated, node.Payload)
-
 	// If the incoming node is older or equally old, ignore it.
 	if !node.LastUpdated.After(existing.LastUpdated) {
-		log.Printf("Incoming node is not newer. Ignoring.")
 		return
 	}
 
-	log.Printf("Incoming node is newer. Updating.")
 	existing.State = node.State
 	existing.LastUpdated = node.LastUpdated
 	if node.Payload != "" {
-		log.Printf("Incoming payload is not empty. Updating payload.")
 		existing.Payload = node.Payload
-	} else {
-		log.Printf("Incoming payload is empty. Preserving existing payload.")
 	}
 }
+
 // Get returns a node from the list.
 func (m *MembershipList) Get(addr string) (*Node, bool) {
 	m.mu.RLock()

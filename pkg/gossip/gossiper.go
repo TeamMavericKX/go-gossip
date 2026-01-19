@@ -2,7 +2,6 @@ package gossip
 
 import (
 	"encoding/json"
-	"log"
 	"math/rand"
 	"net"
 	"sync"
@@ -145,246 +144,73 @@ func (g *Gossiper) sendPing() {
 		Type: Ping,
 	}
 
-		// Encode the message.
-
-		data, err := msg.Encode()
-
-		if err != nil {
-
-			log.Printf("[%s] failed to encode message: %v", g.name, err)
-
-			return
-
-		}
-
-	
-
-		// Send the message.
-
-		if err := g.transport.Write(data, node.Addr.String()); err != nil {
-
-			log.Printf("[%s] failed to send message to %s: %v", g.name, node.Addr.String(), err)
-
-		}
-
+	// Encode the message.
+	data, err := msg.Encode()
+	if err != nil {
+		return
 	}
 
-	
-
-	func (g *Gossiper) sendSync() {
-
-	
-
-		log.Printf("[%s] sendSync: self before update: %v", g.name, g.self)
-
-	
-
-		g.self.LastUpdated = time.Now()
-
-	
-
-		log.Printf("[%s] sendSync: self after update: %v", g.name, g.self)
-
-	
-
-	
-
-	
-
-		nodes := g.members.All()
-
-	
-
-		log.Printf("[%s] sendSync: members being sent: %v", g.name, nodes)
-
-	
-
-		if len(nodes) <= 1 {
-
-	
-
-			return
-
-	
-
-		}
-
-	
-
-	
-
-	
-
-		// Select a random node to gossip to (excluding self).
-
-	
-
-		var node *Node
-
-	
-
-		for {
-
-	
-
-			node = nodes[rand.Intn(len(nodes))]
-
-	
-
-			if node.Addr.String() != g.self.Addr.String() {
-
-	
-
-				break
-
-	
-
-			}
-
-	
-
-		}
-
-	
-
-	
-
-	
-
-		// Create a sync message with the membership list.
-
-	
-
-		payload, err := json.Marshal(g.members.All())
-
-	
-
-		if err != nil {
-
-	
-
-			log.Printf("[%s] failed to marshal membership list: %v", g.name, err)
-
-	
-
-			return
-
-	
-
-		}
-
-	
-
-	
-
-	
-
-		msg := &Message{
-
-	
-
-			Type:    Sync,
-
-	
-
-			Payload: payload,
-
-	
-
-		}
-
-	
-
-	
-
-	
-
-		// Encode the message.
-
-	
-
-		data, err := msg.Encode()
-
-	
-
-		if err != nil {
-
-	
-
-			log.Printf("[%s] failed to encode message: %v", g.name, err)
-
-	
-
-			return
-
-	
-
-		}
-
-	
-
-	
-
-	
-
-		// Send the message.
-
-	
-
-		if err := g.transport.Write(data, node.Addr.String()); err != nil {
-
-	
-
-			log.Printf("[%s] failed to send message to %s: %v", g.name, node.Addr.String(), err)
-
-	
-
-		}
-
-	
-
+	// Send the message.
+	if err := g.transport.Write(data, node.Addr.String()); err != nil {
+		// Log.Printf("[%s] failed to send message to %s: %v", g.name, node.Addr.String(), err)
+	}
+}
+
+func (g *Gossiper) sendSync() {
+	g.self.LastUpdated = time.Now()
+
+	nodes := g.members.All()
+	if len(nodes) <= 1 {
+		return
 	}
 
-	
-
-	func (g *Gossiper) handleMessage(data []byte) {
-
-		msg, err := Decode(data)
-
-		if err != nil {
-
-			log.Printf("[%s] failed to decode message: %v", g.name, err)
-
-			return
-
+	// Select a random node to gossip to (excluding self).
+	var node *Node
+	for {
+		node = nodes[rand.Intn(len(nodes))]
+		if node.Addr.String() != g.self.Addr.String() {
+			break
 		}
-
-	
-
-		switch msg.Type {
-
-		case Ping:
-
-			// Do nothing for now.
-
-			// In the future, this could be used to request a sync.
-
-		case Sync:
-
-			var nodes []*Node
-
-			if err := json.Unmarshal(msg.Payload, &nodes); err != nil {
-
-				log.Printf("[%s] failed to unmarshal sync payload: %v", g.name, err)
-
-				return
-
-			}
-
-			g.members.Merge(nodes)
-
-		}
-
 	}
 
-	
+	// Create a sync message with the membership list.
+	payload, err := json.Marshal(g.members.All())
+	if err != nil {
+		return
+	}
+
+	msg := &Message{
+		Type:    Sync,
+		Payload: payload,
+	}
+
+	// Encode the message.
+	data, err := msg.Encode()
+	if err != nil {
+		return
+	}
+
+	// Send the message.
+	if err := g.transport.Write(data, node.Addr.String()); err != nil {
+		// Log.Printf("[%s] failed to send message to %s: %v", g.name, node.Addr.String(), err)
+	}
+}
+
+func (g *Gossiper) handleMessage(data []byte) {
+	msg, err := Decode(data)
+	if err != nil {
+		return
+	}
+
+	switch msg.Type {
+	case Ping:
+		// Do nothing for now.
+		// In the future, this could be used to request a sync.
+	case Sync:
+		var nodes []*Node
+		if err := json.Unmarshal(msg.Payload, &nodes); err != nil {
+			return
+		}
+		g.members.Merge(nodes)
+	}
+}
