@@ -41,6 +41,9 @@ func (m *MembershipList) addOrUpdate(node *Node) {
 	}
 
 	if node.LastUpdated.After(existing.LastUpdated) {
+		if len(node.Payload) == 0 {
+			node.Payload = existing.Payload
+		}
 		m.nodes[node.Addr.String()] = node
 	}
 }
