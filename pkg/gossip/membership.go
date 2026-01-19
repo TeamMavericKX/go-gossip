@@ -21,7 +21,28 @@ func NewMembershipList() *MembershipList {
 func (m *MembershipList) Add(node *Node) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.nodes[node.Addr.String()] = node
+	m.addOrUpdate(node)
+}
+
+// Merge merges a list of nodes with the local list.
+func (m *MembershipList) Merge(nodes []*Node) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, node := range nodes {
+		m.addOrUpdate(node)
+	}
+}
+
+func (m *MembershipList) addOrUpdate(node *Node) {
+	existing, ok := m.nodes[node.Addr.String()]
+	if !ok {
+		m.nodes[node.Addr.String()] = node
+		return
+	}
+
+	if node.LastUpdated.After(existing.LastUpdated) {
+		m.nodes[node.Addr.String()] = node
+	}
 }
 
 // Get returns a node from the list.

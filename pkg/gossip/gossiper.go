@@ -40,70 +40,79 @@ func NewGossiper(listenAddr string, transport Transport) (*Gossiper, error) {
 	return g, nil
 }
 
-// Start starts the gossip loop.
+// Start starts the gossip loops.
 func (g *Gossiper) Start() {
-	go g.gossipLoop()
+	go g.pingLoop()
+	go g.syncLoop()
 	go g.listen()
 }
 
-// Stop stops the gossip loop.
+// Stop stops the gossip loops.
 func (g *Gossiper) Stop() {
 	close(g.stop)
 }
 
-// AddNode adds a new node to the membership list.
-func (g *Gossiper) AddNode(addr string) error {
-	udpAddr, err := net.ResolveUDPAddr("udp", addr)
-	if err != nil {
-		return err
-	}
-
-	node := &Node{
-		Addr:  udpAddr,
-		State: Alive,
-	}
-
-	g.members.Add(node)
-	return nil
-}
-
-// SetPayload sets the payload for the local node.
-func (g *Gossiper) SetPayload(payload []byte) {
-	g.self.Payload = payload
-	g.self.LastUpdated = time.Now()
-}
-
-// Members returns all nodes in the membership list.
-func (g *Gossiper) Members() []*Node {
-	return g.members.All()
-}
-
-func (g *Gossiper) listen() {
-	for {
-		select {
-		case data := <-g.transport.Read():
-			g.handleMessage(data)
-		case <-g.stop:
-			return
-		}
-	}
-}
-
-func (g *Gossiper) gossipLoop() {
+func (g *Gossiper) pingLoop() {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			g.gossip()
+			g.sendPing()
 		case <-g.stop:
 			return
 		}
 	}
 }
 
-func (g *Gossiper) gossip() {
+func (g *Gossiper) syncLoop() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			g.sendSync()
+		case <-g.stop:
+			return
+		}
+	}
+}
+
+func (g *Gossiper) sendPing() {
+	nodes := g.members.All()
+	if len(nodes) <= 1 {
+		return
+	}
+
+	// Select a random node to gossip to (excluding self).
+	var node *Node
+	for {
+		node = nodes[rand.Intn(len(nodes))]
+		if node.Addr.String() != g.self.Addr.String() {
+			break
+		}
+	}
+
+	msg := &Message{
+		Type: Ping,
+	}
+
+	// Encode the message.
+	data, err := msg.Encode()
+	if err != nil {
+		log.Printf("failed to encode message: %v", err)
+		return
+	}
+
+	// Send the message.
+	if err := g.transport.Write(data, node.Addr.String()); err != nil {
+		log.Printf("failed to send message to %s: %v", node.Addr.String(), err)
+	}
+}
+
+func (g *Gossiper) sendSync() {
 	g.self.LastUpdated = time.Now()
 
 	nodes := g.members.All()
@@ -120,7 +129,7 @@ func (g *Gossiper) gossip() {
 		}
 	}
 
-	// Create a ping message with the membership list.
+	// Create a sync message with the membership list.
 	payload, err := json.Marshal(g.members.All())
 	if err != nil {
 		log.Printf("failed to marshal membership list: %v", err)
@@ -128,7 +137,7 @@ func (g *Gossiper) gossip() {
 	}
 
 	msg := &Message{
-		Type:    Ping,
+		Type:    Sync,
 		Payload: payload,
 	}
 
@@ -154,16 +163,14 @@ func (g *Gossiper) handleMessage(data []byte) {
 
 	switch msg.Type {
 	case Ping:
+		// Do nothing for now.
+		// In the future, this could be used to request a sync.
+	case Sync:
 		var nodes []*Node
 		if err := json.Unmarshal(msg.Payload, &nodes); err != nil {
-			log.Printf("failed to unmarshal ping payload: %v", err)
+			log.Printf("failed to unmarshal sync payload: %v", err)
 			return
 		}
-		for _, node := range nodes {
-			if node.Addr.String() == g.self.Addr.String() {
-				continue
-			}
-			g.members.Add(node)
-		}
+		g.members.Merge(nodes)
 	}
 }

@@ -8,6 +8,8 @@ type MessageType int
 const (
 	// Ping is a message sent to a node to check if it is alive.
 	Ping MessageType = iota
+	// Sync is a message sent to a node to synchronize membership lists.
+	Sync
 )
 
 // Message is the message that is sent between nodes.
