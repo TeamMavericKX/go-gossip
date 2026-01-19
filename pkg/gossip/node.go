@@ -2,6 +2,7 @@ package gossip
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
 	"time"
 )
@@ -18,6 +19,19 @@ const (
 	Dead
 )
 
+func (s State) String() string {
+	switch s {
+	case Alive:
+		return "alive"
+	case Suspected:
+		return "suspected"
+	case Dead:
+		return "dead"
+	default:
+		return "unknown"
+	}
+}
+
 // Node represents a single member in the cluster.
 type Node struct {
 	// Addr is the network address of the node.
@@ -28,6 +42,10 @@ type Node struct {
 	LastUpdated time.Time
 	// Payload is a custom payload associated with the node.
 	Payload []byte
+}
+
+func (n *Node) String() string {
+	return fmt.Sprintf("Node{Addr: %s, State: %s, Payload: %s, LastUpdated: %v}", n.Addr, n.State, string(n.Payload), n.LastUpdated)
 }
 
 type nodeJSON struct {
