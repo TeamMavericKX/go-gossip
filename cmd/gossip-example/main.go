@@ -34,6 +34,9 @@ func main() {
 	node1.SetPayload([]byte("node1"))
 	node2.SetPayload([]byte("node2"))
 
+	// Add a small delay to ensure payload is set before first sync.
+	time.Sleep(1 * time.Second)
+
 	// Start the gossipers.
 	node1.Start()
 	node2.Start()

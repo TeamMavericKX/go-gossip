@@ -52,6 +52,44 @@ func (g *Gossiper) Stop() {
 	close(g.stop)
 }
 
+// AddNode adds a new node to the membership list.
+func (g *Gossiper) AddNode(addr string) error {
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		return err
+	}
+
+	node := &Node{
+		Addr:  udpAddr,
+		State: Alive,
+	}
+
+	g.members.Add(node)
+	return nil
+}
+
+// SetPayload sets the payload for the local node.
+func (g *Gossiper) SetPayload(payload []byte) {
+	g.self.Payload = payload
+	g.self.LastUpdated = time.Now()
+}
+
+// Members returns all nodes in the membership list.
+func (g *Gossiper) Members() []*Node {
+	return g.members.All()
+}
+
+func (g *Gossiper) listen() {
+	for {
+		select {
+		case data := <-g.transport.Read():
+			g.handleMessage(data)
+		case <-g.stop:
+			return
+		}
+	}
+}
+
 func (g *Gossiper) pingLoop() {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
@@ -165,12 +203,13 @@ func (g *Gossiper) handleMessage(data []byte) {
 	case Ping:
 		// Do nothing for now.
 		// In the future, this could be used to request a sync.
-	case Sync:
-		var nodes []*Node
-		if err := json.Unmarshal(msg.Payload, &nodes); err != nil {
-			log.Printf("failed to unmarshal sync payload: %v", err)
-			return
+		case Sync:
+			var nodes []*Node
+			if err := json.Unmarshal(msg.Payload, &nodes); err != nil {
+				log.Printf("failed to unmarshal sync payload: %v", err)
+				return
+			}
+			g.members.Merge(nodes)
 		}
-		g.members.Merge(nodes)
 	}
-}
+	
