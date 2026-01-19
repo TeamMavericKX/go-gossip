@@ -57,8 +57,8 @@ func main() {
 	}
 
 	// Set payloads.
-	node1.SetPayload([]byte("node1"))
-	node2.SetPayload([]byte("node2"))
+	node1.SetPayload("node1")
+	node2.SetPayload("node2")
 
 	// Start the gossipers.
 	node1.Start()

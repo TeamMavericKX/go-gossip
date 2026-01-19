@@ -75,7 +75,7 @@ func (g *Gossiper) AddNode(addr string) error {
 }
 
 // SetPayload sets the payload for the local node.
-func (g *Gossiper) SetPayload(payload []byte) {
+func (g *Gossiper) SetPayload(payload string) {
 	g.self.Payload = payload
 	g.self.LastUpdated = time.Now()
 }
