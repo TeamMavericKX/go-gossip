@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -14,6 +15,7 @@ type Gossiper struct {
 	transport Transport
 	stop      chan struct{}
 	self      *Node
+	wg        sync.WaitGroup
 }
 
 // NewGossiper creates a new gossiper.
@@ -42,6 +44,7 @@ func NewGossiper(listenAddr string, transport Transport) (*Gossiper, error) {
 
 // Start starts the gossip loops.
 func (g *Gossiper) Start() {
+	g.wg.Add(3)
 	go g.pingLoop()
 	go g.syncLoop()
 	go g.listen()
@@ -50,6 +53,7 @@ func (g *Gossiper) Start() {
 // Stop stops the gossip loops.
 func (g *Gossiper) Stop() {
 	close(g.stop)
+	g.wg.Wait()
 }
 
 // AddNode adds a new node to the membership list.
@@ -80,6 +84,7 @@ func (g *Gossiper) Members() []*Node {
 }
 
 func (g *Gossiper) listen() {
+	defer g.wg.Done()
 	for {
 		select {
 		case data := <-g.transport.Read():
@@ -91,6 +96,7 @@ func (g *Gossiper) listen() {
 }
 
 func (g *Gossiper) pingLoop() {
+	defer g.wg.Done()
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
@@ -105,6 +111,7 @@ func (g *Gossiper) pingLoop() {
 }
 
 func (g *Gossiper) syncLoop() {
+	defer g.wg.Done()
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
@@ -203,13 +210,12 @@ func (g *Gossiper) handleMessage(data []byte) {
 	case Ping:
 		// Do nothing for now.
 		// In the future, this could be used to request a sync.
-		case Sync:
-			var nodes []*Node
-			if err := json.Unmarshal(msg.Payload, &nodes); err != nil {
-				log.Printf("failed to unmarshal sync payload: %v", err)
-				return
-			}
-			g.members.Merge(nodes)
+	case Sync:
+		var nodes []*Node
+		if err := json.Unmarshal(msg.Payload, &nodes); err != nil {
+			log.Printf("failed to unmarshal sync payload: %v", err)
+			return
 		}
+		g.members.Merge(nodes)
 	}
-	
+}
