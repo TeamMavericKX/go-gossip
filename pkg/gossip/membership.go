@@ -61,7 +61,6 @@ func (m *MembershipList) All() []*Node {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	nodes := make([]*Node, 0, len(m.nodes))
-.
 	for _, node := range m.nodes {
 		nodes = append(nodes, node)
 	}
