@@ -43,21 +43,25 @@ func (m *MembershipList) addOrUpdate(node *Node) {
 	}
 
 	log.Printf("Updating node: %s", node.Addr.String())
-	log.Printf("Existing: LastUpdated=%v, Payload=%s", existing.LastUpdated, string(existing.Payload))
-	log.Printf("Incoming: LastUpdated=%v, Payload=%s", node.LastUpdated, string(node.Payload))
+	log.Printf("Existing: LastUpdated=%v, Payload=%s", existing.LastUpdated, existing.Payload)
+	log.Printf("Incoming: LastUpdated=%v, Payload=%s", node.LastUpdated, node.Payload)
 
-	if node.LastUpdated.After(existing.LastUpdated) {
-		log.Printf("Incoming node is newer. Updating.")
-		if len(node.Payload) == 0 {
-			log.Printf("Incoming payload is empty. Preserving existing payload.")
-			node.Payload = existing.Payload
-		}
-		m.nodes[node.Addr.String()] = node
-	} else {
+	// If the incoming node is older or equally old, ignore it.
+	if !node.LastUpdated.After(existing.LastUpdated) {
 		log.Printf("Incoming node is not newer. Ignoring.")
+		return
+	}
+
+	log.Printf("Incoming node is newer. Updating.")
+	existing.State = node.State
+	existing.LastUpdated = node.LastUpdated
+	if node.Payload != "" {
+		log.Printf("Incoming payload is not empty. Updating payload.")
+		existing.Payload = node.Payload
+	} else {
+		log.Printf("Incoming payload is empty. Preserving existing payload.")
 	}
 }
-
 // Get returns a node from the list.
 func (m *MembershipList) Get(addr string) (*Node, bool) {
 	m.mu.RLock()
